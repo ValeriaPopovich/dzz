@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ДЗ: Степени — простой тест (читаемые формулы)</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root{--bg:#fffaf6;--ink:#5a3e44;--muted:#8a6b72;--card:#ffffff;--rose:#ef9aa6;--shadow:0 10px 30px rgba(0,0,0,.08)}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:"DM Sans",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(180deg,#fde2e4,#fffaf6);color:var(--ink)}
+    header{position:sticky;top:0;background:rgba(255,255,255,.85);backdrop-filter:blur(6px);border-bottom:1px solid #f5dadd}
+    .wrap{max-width:900px;margin:0 auto;padding:16px}
+    h1{margin:0;font-size:clamp(22px,3vw,36px)}
+
+    main{padding:18px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+    .card{background:var(--card);border-radius:20px;box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;gap:8px}
+    .num{font-weight:900;background:#dff3ea;padding:6px 10px;border-radius:999px;align-self:flex-start}
+    .pretty{font-weight:700;color:#6d4a52}
+    .controls{display:grid;gap:10px}
+    input[type=text]{width:100%;padding:12px 14px;border:1px solid #eadfe1;border-radius:14px;font-size:16px;color:var(--ink)}
+    .btn{border:none;background:var(--rose);color:#fff;padding:10px 14px;border-radius:14px;font-weight:800;cursor:pointer;box-shadow:var(--shadow);}
+    .bar{height:10px;background:#ffe3ea;border-radius:999px;overflow:hidden;margin-top:8px}
+    .bar>span{display:block;height:100%;width:0;background:linear-gradient(90deg,#ef9aa6,#f7b8b8);transition:width .3s ease}
+    .results{background:#fff;border-radius:20px;box-shadow:var(--shadow);padding:16px;margin-top:18px}
+    .res-item{padding:10px 0;border-bottom:1px dashed #f1d8dc}
+    .res-item:last-child{border-bottom:none}
+
+    /* Самодельные дроби */
+    .frac{display:inline-flex;flex-direction:column;align-items:center;line-height:1;vertical-align:middle}
+    .frac .n{border-bottom:1px solid currentColor;padding:0 2px}
+    .frac .d{padding:0 2px;margin-top:-2px;font-size:.95em}
+    sup{font-size:.75em}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Домашнее задание: степени — простой тест</h1>
+      <div class="bar" aria-label="Прогресс"><span id="barfill"></span></div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="grid" id="taskGrid" aria-live="polite"></section>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn" id="checkAll">Проверить</button>
+      <button class="btn" id="showResults" style="background:#7fd1a2">Показать результаты</button>
+    </div>
+    <section class="results" id="results" hidden>
+      <h3 style="margin:6px 0 10px">Итоговая ведомость</h3>
+      <div id="resList"></div>
+    </section>
+  </main>
+
+<script>
+const TASKS=[
+  { t:'a^-12 · (a^7)^2 при a=6;', ans:36 },
+  { t:'(a^7)^-2 : a^-16 при a=3;', ans:9 },
+  { t:'(a^9)^3 · a^7 / a^29 при a=2;', ans:32 },
+  { t:'a^23 · (b^5)^4 / (a · b)^20 при a=2, b=√2;', ans:8 },
+  { t:'2^7 / 8 ;', ans:16 },
+  { t:'20^7 / (4^6 · 5^5) ;', ans:100 },
+  { t:'5^9 · 8^11 / 40^9 ;', ans:64 },
+  { t:'5^-7 · (5^5)^2 ;', ans:125 },
+  { t:'(8^3)^-7 / 8^-23 ;', ans:64 },
+  { t:'1/5^-8 · 1/5^6 ;', ans:25 },
+  { t:'(13^-4 · 13^16) / 13^11 .', ans:13 }
+];
+
+const taskGrid=document.getElementById('taskGrid');
+const barfill=document.getElementById('barfill');
+const resList=document.getElementById('resList');
+const results=document.getElementById('results');
+
+function pretty(src){
+  const parts = src.split('при');
+  let expr = parts[0];
+  const tail = parts.length>1 ? 'при'+parts.slice(1).join('при') : '';
+  expr = expr.replace(/([^\s/][^/]*?)\s*\/\s*([^\s/][^/]*?)(?=\s|$)/g,
+    function(_,num,den){ return '<span class="frac"><span class="n">'+num.trim()+'</span><span class="d">'+den.trim()+'</span></span>'; });
+  let h = expr + (tail?(' '+tail):'');
+  h = h.replace(/([a-zA-Z0-9)√])\^(-?\d+)/g, function(_m,b,p){ return b+'<sup>'+p+'</sup>'; });
+  h = h.replace(/\*/g,'·');
+  return h;
+}
+
+function createCard(i,obj){
+  const card=document.createElement('article');card.className='card';
+  const num=document.createElement('div');num.className='num';num.textContent='№ '+(i+1);card.appendChild(num);
+  const prettyDiv=document.createElement('div');prettyDiv.className='pretty';prettyDiv.innerHTML=pretty(obj.t);card.appendChild(prettyDiv);
+  const ctr=document.createElement('div');ctr.className='controls';
+  const inp=document.createElement('input');inp.type='text';inp.placeholder='Ответ';inp.id='ans_'+i;ctr.appendChild(inp);
+  card.appendChild(ctr);
+  return card;
+}
+
+function render(){ taskGrid.innerHTML=''; TASKS.forEach((t,i)=>taskGrid.appendChild(createCard(i,t))); updateBar(); }
+
+function updateBar(){ const total=TASKS.length; let done=0; TASKS.forEach((_,i)=>{const v=document.getElementById('ans_'+i).value.trim(); if(v!=='') done++;}); barfill.style.width=Math.round(done/TASKS.length*100)+'%'; }
+
+document.addEventListener('input', e=>{ if(e.target.id && e.target.id.startsWith('ans_')) updateBar(); });
+
+function parseNum(v){ return parseFloat(String(v).replace(',', '.')); }
+
+function checkAll(){
+  const rows=[]; TASKS.forEach((t,i)=>{const raw=document.getElementById('ans_'+i).value.trim(); const num=parseNum(raw); const ok=Math.abs(num-t.ans)<1e-9; rows.push({i,text:t.t,given:raw,ok,right:t.ans});});
+  resList.innerHTML=rows.map(r=>`<div class="res-item"><b>${r.i+1}.</b> ${r.ok?'✔️':'❌'}<br>${escapeHtml(r.text)}<br><small>Ваш ответ: <b>${escapeHtml(r.given||'—')}</b>${r.ok?'':` • Правильный: <b>${r.right}</b>`}</small></div>`).join('');
+  results.hidden=false; results.scrollIntoView({behavior:'smooth'});
+}
+
+function escapeHtml(s){return String(s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]})}
+
+render();
+
+document.getElementById('checkAll').addEventListener('click',checkAll);
+document.getElementById('showResults').addEventListener('click',checkAll);
+</script>
+</body>
+</html>
